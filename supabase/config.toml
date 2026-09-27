@@ -1,0 +1,25 @@
+# Supabase project config (used by `supabase start` / `supabase functions deploy`).
+project_id = "physical-memory"
+
+[auth]
+# Users start anonymous (no sign-up wall); link email/Apple later.
+enable_anonymous_sign_ins = true
+
+[storage]
+file_size_limit = "10MiB"
+
+[functions.analyze-scene]
+verify_jwt = true
+
+[functions.interpret-query]
+verify_jwt = true
+
+[functions.embed]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
+
+# Called by RevenueCat's servers; authenticated with REVENUECAT_WEBHOOK_SECRET instead of a user JWT.
+[functions.revenuecat-webhook]
+verify_jwt = false
