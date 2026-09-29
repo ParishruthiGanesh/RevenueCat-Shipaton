@@ -3,7 +3,7 @@ import type { CustomerInfo } from 'react-native-purchases';
 import { router } from 'expo-router';
 import { gate, type GatedFeature, type GateResult, type Usage } from '@/core/plan';
 import { kvGet, kvSet } from '@/data/db';
-import { configurePurchases, getCustomerInfo, hasPro, identify, onCustomerInfo } from '@/services/purchases';
+import { configurePurchases, getCustomerInfo, hasPro, identify, logOutPurchases, onCustomerInfo } from '@/services/purchases';
 import { track } from '@/services/analytics';
 import { useDerived } from './memory';
 
@@ -42,11 +42,13 @@ export function ProProvider({ children, userId }: { children: React.ReactNode; u
   useEffect(() => {
     kvGet(SCANS_KEY()).then((v) => setAiScans(v ? parseInt(v, 10) : 0));
     if (!available) return;
-    if (userId) identify(userId);
-    getCustomerInfo().then((i) => {
-      setCustomerInfo(i);
-      setLoading(false);
-    });
+    // Pro belongs to the account: log in on sign-in, detach on sign-out, then refresh.
+    (userId ? identify(userId) : logOutPurchases())
+      .then(() => getCustomerInfo())
+      .then((i) => {
+        setCustomerInfo(i);
+        setLoading(false);
+      });
     return onCustomerInfo(setCustomerInfo);
   }, [userId, available]);
 

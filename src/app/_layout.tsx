@@ -45,6 +45,7 @@ function Shell() {
         <Stack.Screen name="capture/review" options={{ gestureEnabled: false }} />
         <Stack.Screen name="capture/result" options={{ gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
         <Stack.Screen name="scan-qr" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="evidence/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>

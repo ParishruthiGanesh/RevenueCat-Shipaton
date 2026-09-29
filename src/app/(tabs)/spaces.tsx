@@ -7,6 +7,7 @@ import { createEntity, ensurePlace } from '@/core/operations';
 import { itemCounts } from '@/core/queries';
 import type { Entity, SpaceType } from '@/core/types';
 import { useDerived, useMemory } from '@/state/memory';
+import { useSession } from '@/state/session';
 import { useTheme } from '@/ui/theme';
 import { radius, space } from '@/ui/tokens';
 import { Button } from '@/ui/components/Button';
@@ -31,6 +32,7 @@ export default function Spaces() {
   const { graph } = useMemory();
   const { c } = useTheme();
   const [prompt, setPrompt] = useState<PromptSpec | null>(null);
+  const { requireSignIn } = useSession();
 
   const tree = useDerived((g) => {
     const counts = itemCounts(g);
@@ -46,6 +48,7 @@ export default function Spaces() {
   });
 
   const addSpace = () =>
+    requireSignIn('save') &&
     setPrompt({
       title: 'Add a space',
       message: 'A place with its own rooms — home, office, parents’ house, storage unit…',
@@ -57,6 +60,7 @@ export default function Spaces() {
       },
     });
   const addRoom = (s: Entity) =>
+    requireSignIn('save') &&
     setPrompt({ title: `Add a room to ${s.name}`, placeholder: 'Room', suggestions: ['Bedroom', 'Kitchen', 'Living room', 'Office', 'Bathroom', 'Garage', 'Closet'], onSubmit: (v) => ensurePlace(graph, s.id, v, 'room') });
 
   return (

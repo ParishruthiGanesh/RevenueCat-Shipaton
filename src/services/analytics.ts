@@ -23,7 +23,9 @@ export type AnalyticsEvent =
   | 'purchase_completed'
   | 'notification_opened'
   | 'capture_saved'
-  | 'onboarding_completed';
+  | 'onboarding_completed'
+  | 'sign_in_completed'
+  | 'signed_out';
 
 type Prop = number | boolean | 'remember' | 'scan' | 'box' | 'ai' | 'manual' | 'high' | 'medium' | 'low' | 'unknown' | string;
 

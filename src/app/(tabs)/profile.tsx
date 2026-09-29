@@ -1,10 +1,16 @@
 import React from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { Accessibility, BellRing, Box, ChevronRight, Contrast, Crown, Eye, HandHelping, Luggage, Mic, RotateCcw, Shield, Type, Users } from 'lucide-react-native';
+import { Accessibility, BellRing, Box, ChevronRight, Contrast, Crown, Eye, HandHelping, LogIn, LogOut, Luggage, Mic, RotateCcw, Shield, Type, UserRound, Users } from 'lucide-react-native';
 import { useDerived, useMemory } from '@/state/memory';
 import { usePro } from '@/state/pro';
 import { useSettings } from '@/state/settings';
+import { useSession } from '@/state/session';
+import { signOut } from '@/services/auth';
+import { track } from '@/services/analytics';
+import { wipeLocal } from '@/data/db';
+import { wipeMedia } from '@/data/media';
+import { keyOf, type Mutation, type TableName } from '@/core/graph';
 import { requestNotificationPermission } from '@/services/notifications';
 import { restore } from '@/services/purchases';
 import { useTheme } from '@/ui/theme';
@@ -18,6 +24,26 @@ export default function Profile() {
   const { c } = useTheme();
   const { settings, update } = useSettings();
   const { isPro, customerInfo, require: requireFeature, setCustomerInfo, available } = usePro();
+  const { user, signedIn, backend, requireSignIn } = useSession();
+
+  const doSignOut = (removeLocal: boolean) => async () => {
+    await signOut();
+    track('signed_out', { removed_local: removeLocal });
+    if (removeLocal) {
+      wipeMedia();
+      await wipeLocal();
+      const snap = graph.snapshot();
+      graph.commit((Object.keys(snap) as TableName[]).flatMap((t) => (snap[t] as never[]).map((row) => ({ op: 'delete', table: t, key: keyOf(t, row) }) as Mutation)));
+      update({ onboarded: false, cloudSync: false });
+      router.replace('/onboarding');
+    }
+  };
+  const confirmSignOut = () =>
+    Alert.alert('Sign out?', 'Your memory can stay on this phone, or be removed from it. Your cloud backup (if on) is kept either way.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out, keep on this phone', onPress: doSignOut(false) },
+      { text: 'Sign out and remove from this phone', style: 'destructive', onPress: doSignOut(true) },
+    ]);
 
   const stats = useDerived((g) => ({
     items: g.items().length,
@@ -32,7 +58,22 @@ export default function Profile() {
     <Screen>
       <T variant="title">You</T>
 
-      <Card tone={isPro ? 'surface' : 'ember'} onPress={() => router.push('/paywall')} style={[styles.pro, { marginTop: space.xl }]}>
+      {backend ? (
+        <Card style={[styles.pro, { marginTop: space.xl }]} onPress={signedIn ? undefined : () => requireSignIn('general')}>
+          <View style={[styles.proIcon, { backgroundColor: c.surfaceMuted }]}>
+            <UserRound size={20} color={c.inkSoft} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <T variant="subheading">{signedIn ? (user?.name ?? user?.email ?? 'Signed in') : 'Not signed in'}</T>
+            <T variant="caption" color="muted">
+              {signedIn ? `${user?.email ?? ''}${user?.provider ? ` · via ${user.provider === 'apple' ? 'Apple' : user.provider === 'google' ? 'Google' : user.provider}` : ''}` : 'Sign in to capture, save and back up your memory'}
+            </T>
+          </View>
+          {signedIn ? null : <LogIn size={18} color={c.ember} />}
+        </Card>
+      ) : null}
+
+      <Card tone={isPro ? 'surface' : 'ember'} onPress={() => router.push('/paywall')} style={[styles.pro, { marginTop: backend ? space.md : space.xl }]}>
         <View style={[styles.proIcon, { backgroundColor: isPro ? c.ink : c.ember }]}>
           <Crown size={20} color="#fff" />
         </View>
@@ -90,6 +131,7 @@ export default function Profile() {
 
       <Section title="Privacy & data">
         <Card style={{ paddingVertical: space.xs }}>
+          {signedIn ? <Row icon={LogOut} title="Sign out" onPress={confirmSignOut} /> : null}
           <Row icon={Shield} title="Privacy center" subtitle="What’s captured, what’s uploaded, private zones, erase" onPress={() => router.push('/privacy')} />
           <ToggleRow
             icon={BellRing}
@@ -110,6 +152,7 @@ export default function Profile() {
               icon={RotateCcw}
               title="Restore purchases"
               onPress={async () => {
+                if (!requireSignIn('purchase')) return;
                 const r = await restore();
                 if (r.info) setCustomerInfo(r.info);
                 Alert.alert(r.restored ? 'Pro restored' : 'Nothing to restore', r.restored ? 'Welcome back.' : (r.message ?? 'No previous Pro purchase found.'));

@@ -1,5 +1,11 @@
 import type { ExpoConfig } from 'expo/config';
 
+// Google iOS sign-in needs the reversed iOS client ID registered as a URL scheme.
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+const googleIosUrlScheme = googleIosClientId ? `com.googleusercontent.apps.${googleIosClientId.replace('.apps.googleusercontent.com', '')}` : undefined;
+// Sign in with Apple needs a paid Apple Developer account; off until EXPO_PUBLIC_ENABLE_APPLE_SIGN_IN=true.
+const appleSignIn = process.env.EXPO_PUBLIC_ENABLE_APPLE_SIGN_IN === 'true';
+
 /**
  * App configuration. Public keys come from EXPO_PUBLIC_* env vars (see .env.example).
  * Secrets never live here — they are Supabase Edge Function secrets.
@@ -15,6 +21,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'app.physicalmemory',
+    usesAppleSignIn: appleSignIn,
     infoPlist: {
       NSCameraUsageDescription: 'Physical Memory uses the camera only when you press the shutter, to remember where you put your things.',
       NSMicrophoneUsageDescription: 'Say what you’re putting away, like “Remember my passport is in the top drawer”.',
@@ -45,6 +52,8 @@ const config: ExpoConfig = {
     ['expo-camera', { cameraPermission: 'Physical Memory uses the camera only when you press the shutter, to remember where you put your things.', recordAudioAndroid: false }],
     ['expo-speech-recognition', { microphonePermission: 'Say what you’re putting away.', speechRecognitionPermission: 'Your words are turned into text to understand what you’re remembering or asking.' }],
     ['expo-notifications', { color: '#D9602F' }],
+    ...(appleSignIn ? ['expo-apple-authentication'] : []),
+    googleIosUrlScheme ? ['react-native-nitro-google-signin', { iosUrlScheme: googleIosUrlScheme }] : 'react-native-nitro-google-signin',
     ['onesignal-expo-plugin', { mode: process.env.NODE_ENV === 'production' ? 'production' : 'development' }],
     ['expo-build-properties', { ios: { deploymentTarget: '16.4' } }],
   ],

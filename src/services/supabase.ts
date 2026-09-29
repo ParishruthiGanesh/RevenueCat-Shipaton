@@ -1,11 +1,12 @@
 import 'react-native-url-polyfill/auto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import Storage from 'expo-sqlite/kv-store';
 import { env, features } from './env';
 
 /**
  * Supabase client. Sessions persist in the on-device SQLite KV store.
- * Users start with an anonymous account (no sign-up wall) that can later be linked to email/Apple.
+ * Users sign in with Apple or Google (services/auth.ts); browsing works without an account.
  */
 let client: SupabaseClient | null = null;
 
@@ -13,20 +14,20 @@ export function supabase(): SupabaseClient | null {
   if (!features.backend) return null;
   if (!client) {
     client = createClient(env.supabaseUrl, env.supabaseAnonKey, {
-      auth: { storage: Storage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
+      // Native: SQLite-backed KV store. Web (preview only): the browser's localStorage, because
+      // browsers allow a single open handle per SQLite file and the memory database already holds it.
+      auth: { storage: Platform.OS === 'web' ? undefined : Storage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false, flowType: 'pkce' },
     });
   }
   return client;
 }
 
-export async function ensureSession(): Promise<string | null> {
+/** Current signed-in user id, or null. Never creates an account. */
+export async function currentUserId(): Promise<string | null> {
   const sb = supabase();
   if (!sb) return null;
   const { data } = await sb.auth.getSession();
-  if (data.session) return data.session.user.id;
-  const { data: anon, error } = await sb.auth.signInAnonymously();
-  if (error) throw error;
-  return anon.user?.id ?? null;
+  return data.session?.user.id ?? null;
 }
 
 export class BackendError extends Error {
@@ -43,8 +44,8 @@ export class BackendError extends Error {
 export async function invoke<T>(fn: string, body: unknown, timeoutMs = 60_000): Promise<T> {
   const sb = supabase();
   if (!sb) throw new BackendError('not_configured', 'Cloud features are not configured.', 0);
-  await ensureSession();
   const { data: session } = await sb.auth.getSession();
+  if (!session.session) throw new BackendError('auth_required', 'Please sign in first.', 401);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -53,7 +54,7 @@ export async function invoke<T>(fn: string, body: unknown, timeoutMs = 60_000): 
       headers: {
         'Content-Type': 'application/json',
         apikey: env.supabaseAnonKey,
-        Authorization: `Bearer ${session.session?.access_token ?? env.supabaseAnonKey}`,
+        Authorization: `Bearer ${session.session.access_token}`,
       },
       body: JSON.stringify(body),
       signal: controller.signal,

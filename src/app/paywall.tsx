@@ -8,6 +8,7 @@ import { FREE_LIMITS } from '@/core/plan';
 import { getCurrentOffering, purchase, restore } from '@/services/purchases';
 import { track } from '@/services/analytics';
 import { usePro } from '@/state/pro';
+import { useSession } from '@/state/session';
 import { useTheme } from '@/ui/theme';
 import { radius, space } from '@/ui/tokens';
 import { Button, IconButton } from '@/ui/components/Button';
@@ -32,6 +33,8 @@ export default function Paywall() {
   const { reason } = useLocalSearchParams<{ reason?: string }>();
   const { c } = useTheme();
   const { available, isPro, setCustomerInfo } = usePro();
+  const { requireSignIn } = useSession();
+  const back = { pathname: '/paywall', params: reason ? { reason } : undefined };
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [selected, setSelected] = useState<PurchasesPackage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +54,7 @@ export default function Paywall() {
   }, [available, reason]);
 
   const buy = async () => {
-    if (!selected) return;
+    if (!selected || !requireSignIn('purchase', back)) return;
     setBusy('buy');
     setMessage(null);
     track('purchase_started', { package: selected.packageType.toLowerCase() });
@@ -65,6 +68,7 @@ export default function Paywall() {
   };
 
   const doRestore = async () => {
+    if (!requireSignIn('purchase', back)) return;
     setBusy('restore');
     setMessage(null);
     const r = await restore();

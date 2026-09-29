@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Camera, House, Map, Search, UserRound } from 'lucide-react-native';
 import { useTheme } from '@/ui/theme';
+import { useSession } from '@/state/session';
 import { radius, shadow, space } from '@/ui/tokens';
 import { T } from '@/ui/components/Text';
 
@@ -16,6 +17,7 @@ const LABELS: Record<string, string> = { index: 'Home', spaces: 'Spaces', search
 /** Floating tab bar with the Capture action as the unmistakable centre of gravity. */
 function TabBar({ state, navigation }: TabBarProps) {
   const { c, simple } = useTheme();
+  const { requireSignIn } = useSession();
   const insets = useSafeAreaInsets();
   const routes = state.routes.filter((r) => ICONS[r.name] && (!simple || r.name === 'index' || r.name === 'search'));
   const left = routes.slice(0, Math.ceil(routes.length / 2));
@@ -54,7 +56,7 @@ function TabBar({ state, navigation }: TabBarProps) {
           accessibilityLabel="Remember this — open camera"
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
-            router.push('/capture');
+            if (requireSignIn('capture', { pathname: '/capture' })) router.push('/capture');
           }}
           style={({ pressed }) => [styles.capture, { backgroundColor: c.ember, transform: [{ scale: pressed ? 0.94 : 1 }] }, shadow.ember]}
         >

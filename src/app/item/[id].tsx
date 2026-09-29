@@ -10,6 +10,7 @@ import { historyOf, usualLocation, type HistoryEntry } from '@/core/queries';
 import { FREE_HISTORY_DEPTH } from '@/core/plan';
 import { deleteMediaFile } from '@/data/media';
 import { useDerived, useMemory } from '@/state/memory';
+import { useSession } from '@/state/session';
 import { usePro } from '@/state/pro';
 import { track } from '@/services/analytics';
 import { useTheme } from '@/ui/theme';
@@ -27,6 +28,7 @@ export default function ItemDetail() {
   const { c } = useTheme();
   const { isPro } = usePro();
   const [prompt, setPrompt] = useState<PromptSpec | null>(null);
+  const { requireSignIn } = useSession();
 
   const data = useDerived(
     (g) => {
@@ -72,6 +74,7 @@ export default function ItemDetail() {
     });
   const nickname = () => setPrompt({ title: 'Add a nickname', message: 'e.g. “travel charger”. You can search by it.', placeholder: 'Nickname', onSubmit: (v) => addAlias(graph, entity.id, v) });
   const lend = () =>
+    requireSignIn('save') &&
     setPrompt({
       title: `Lend ${entity.name}`,
       message: 'Who has it? You’ll get a gentle reminder after three weeks.',

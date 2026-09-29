@@ -11,6 +11,7 @@ import { contentsOf } from '@/core/queries';
 import { resolvePlace } from '@/core/search';
 import type { Entity } from '@/core/types';
 import { useMemory } from '@/state/memory';
+import { useSession } from '@/state/session';
 import { track } from '@/services/analytics';
 import { useTheme } from '@/ui/theme';
 import { radius, space } from '@/ui/tokens';
@@ -28,6 +29,7 @@ export default function ScanQR() {
   const [unknown, setUnknown] = useState(false);
   const [prompt, setPrompt] = useState<PromptSpec | null>(null);
   const lock = useRef(false);
+  const { requireSignIn } = useSession();
 
   const onScan = ({ data }: { data: string }) => {
     if (lock.current || box) return;
@@ -95,6 +97,7 @@ export default function ScanQR() {
               variant="secondary"
               style={{ flex: 1 }}
               onPress={() =>
+                requireSignIn('save') &&
                 setPrompt({
                   title: `Where is ${box.name} now?`,
                   placeholder: 'e.g. Storage unit, rack 4',

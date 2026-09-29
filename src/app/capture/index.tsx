@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
@@ -16,6 +16,7 @@ import { captureSession } from '@/state/capture-session';
 import { useMemory } from '@/state/memory';
 import { usePro } from '@/state/pro';
 import { useSettings } from '@/state/settings';
+import { useSession } from '@/state/session';
 import { useVoice } from '@/services/voice';
 import { track } from '@/services/analytics';
 import { radius, space } from '@/ui/tokens';
@@ -36,6 +37,7 @@ export default function CaptureScreen() {
   const { graph } = useMemory();
   const { settings } = useSettings();
   const { require: requireFeature, recordAiScan } = usePro();
+  const { signedIn, authReady, backend } = useSession();
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
@@ -111,6 +113,12 @@ export default function CaptureScreen() {
       setStage(null);
     }
   };
+
+  // Capturing stores information, so it requires an account (every entry point lands here).
+  if (backend && authReady && !signedIn) {
+    const next = { pathname: '/capture', params: Object.fromEntries(Object.entries(params).filter(([, v]) => typeof v === 'string')) as Record<string, string> };
+    return <Redirect href={{ pathname: '/sign-in', params: { reason: 'capture', next: JSON.stringify(next) } }} />;
+  }
 
   // ── permission states ──
   if (!permission) return <View style={{ flex: 1, backgroundColor: '#000' }} />;

@@ -28,7 +28,7 @@ export default function Privacy() {
   const { c } = useTheme();
   const { settings, update } = useSettings();
   const { require: requireFeature } = usePro();
-  const { backend, userId, online } = useSession();
+  const { backend, userId, online, requireSignIn } = useSession();
   const [working, setWorking] = useState(false);
 
   const zones = useDerived((g) => g.entities((e) => e.kind !== 'item' && e.kind !== 'space'));
@@ -109,7 +109,7 @@ export default function Privacy() {
           <ToggleRow icon={Cloud} title="Cloud analysis" subtitle="Identify objects with AI. Off: you label things yourself; nothing leaves the phone." value={settings.cloudAI} onValueChange={(v) => update({ cloudAI: v })} />
           <ToggleRow icon={UserRoundX} title="Minimise people" subtitle="Discard full photos when someone is visible" value={settings.minimizePeople} onValueChange={(v) => update({ minimizePeople: v })} />
           <ToggleRow icon={EyeOff} title="Never read text" subtitle="The AI won’t transcribe documents, labels or cards" value={settings.sensitiveMode} onValueChange={(v) => update({ sensitiveMode: v })} />
-          <ToggleRow icon={CloudDownload} title="Encrypted backup & sync" subtitle={backend ? 'Pro · private to your account' : 'Not configured in this build'} value={settings.cloudSync} disabled={!backend} onValueChange={(v) => (!v || requireFeature('cloud_sync')) && update({ cloudSync: v })} />
+          <ToggleRow icon={CloudDownload} title="Encrypted backup & sync" subtitle={backend ? 'Pro · private to your account' : 'Not configured in this build'} value={settings.cloudSync} disabled={!backend} onValueChange={(v) => (!v || (requireSignIn('sync', { pathname: '/privacy' }) && requireFeature('cloud_sync'))) && update({ cloudSync: v })} />
           {settings.cloudSync && backend ? (
             <Row
               icon={CloudDownload}

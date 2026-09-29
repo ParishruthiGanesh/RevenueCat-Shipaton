@@ -7,6 +7,7 @@ import { breadcrumb, formatAgo, softLower } from '@/core/phrasing';
 import { contentsOf, itemCounts, placesNotScannedSince } from '@/core/queries';
 import { resolvePlace } from '@/core/search';
 import { useDerived, useMemory } from '@/state/memory';
+import { useSession } from '@/state/session';
 import { useTheme } from '@/ui/theme';
 import { radius, space } from '@/ui/tokens';
 import { BoxLabel, printBoxLabel } from '@/ui/components/BoxLabel';
@@ -26,6 +27,7 @@ export default function PlaceDetail() {
   const { graph } = useMemory();
   const { c } = useTheme();
   const [prompt, setPrompt] = useState<PromptSpec | null>(null);
+  const { requireSignIn } = useSession();
 
   const data = useDerived(
     (g) => {
@@ -57,6 +59,7 @@ export default function PlaceDetail() {
   const isBox = !!place.box;
 
   const addChild = () =>
+    requireSignIn('save') &&
     setPrompt({
       title: `Add a ${CHILD_LABEL[place.kind]}`,
       placeholder: 'Name',
@@ -65,6 +68,7 @@ export default function PlaceDetail() {
     });
   const rename = () => setPrompt({ title: 'Rename', initial: place.name, onSubmit: (v) => updateEntity(graph, place.id, { name: v }) });
   const move = () =>
+    requireSignIn('save') &&
     setPrompt({
       title: `Move ${place.name}`,
       message: 'Where is it now? Everything inside moves with it.',

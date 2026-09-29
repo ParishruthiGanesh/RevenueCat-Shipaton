@@ -14,7 +14,7 @@ supabase functions deploy analyze-scene interpret-query embed delete-account rev
 
 In the dashboard:
 
-- **Auth → Providers → Anonymous sign-ins: enable.** Users start anonymous, with no sign-up wall. Every Edge Function still requires a valid user JWT, so none of them is an open AI proxy.
+- **Authentication → Sign In / Providers:** enable **Apple** and **Google** (see "Sign-in" below). Leave anonymous sign-ins off. People can look around without an account, but capturing, saving, purchases and backup require signing in. Every Edge Function requires a signed-in user.
 - Copy **Project URL** and **anon key** into `.env` as `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 
 Secrets (server only, never in the app):
@@ -33,6 +33,24 @@ Before deploying, verify locally:
 npm run db:validate       # migration + RLS checks on real Postgres (PGlite)
 npm run functions:check   # Deno type-checks all functions
 ```
+
+## Sign-in (Apple and Google)
+
+**Google** (Google Cloud Console → APIs & Services):
+
+1. **OAuth consent screen:** External, with app name "Physical Memory" and your support email. Scopes: `email`, `profile`, `openid`.
+2. **Credentials → Create OAuth client ID**, three times:
+   - **Web application.** Copy its client ID and secret into Supabase → Auth → Google (Client IDs / Client Secret). Its ID is also `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
+   - **iOS**, bundle ID `app.physicalmemory`. Its ID is `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
+   - **Android**, package `app.physicalmemory`, with the SHA-1 from `npx eas-cli@latest credentials` (after your first EAS build). Create one for the debug/dev keystore and one for the production keystore.
+3. In Supabase → Auth → Google, list **all three client IDs** (Web first, comma-separated) and turn on **Skip nonce check**. The native iOS Google SDK adds a nonce the app can't read.
+
+**Apple** (developer.apple.com, needs the Apple Developer Program):
+
+1. Certificates, IDs & Profiles → Identifiers → `app.physicalmemory` → enable **Sign in with Apple**. EAS does this automatically when `usesAppleSignIn` is set.
+2. In Supabase → Auth → Apple, enable it and add `app.physicalmemory` under **Client IDs**. Native sign-in doesn't need the secret key.
+
+Apple sign-in appears on iPhones. Google appears on both platforms.
 
 ## 2. RevenueCat (required for purchases)
 
@@ -67,6 +85,7 @@ Camera, speech recognition, RevenueCat and OneSignal are native modules, so use 
 |---|---|---|
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | app | for cloud AI and sync |
 | `EXPO_PUBLIC_REVENUECAT_IOS_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` | app | for purchases |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | app | for Google sign-in |
 | `EXPO_PUBLIC_ONESIGNAL_APP_ID` | app | optional |
 | `ANTHROPIC_API_KEY` | Supabase secret | for AI scene analysis |
 | `REVENUECAT_WEBHOOK_SECRET` | Supabase secret | for the entitlement mirror |

@@ -32,6 +32,16 @@ export async function identify(userId: string): Promise<void> {
   }
 }
 
+/** Detach purchases from the account on sign-out (RevenueCat returns to an anonymous user). */
+export async function logOutPurchases(): Promise<void> {
+  if (!configured) return;
+  try {
+    if (!(await Purchases.isAnonymous())) await Purchases.logOut();
+  } catch {
+    // Already anonymous.
+  }
+}
+
 export function hasPro(info: CustomerInfo | null | undefined): boolean {
   return !!info?.entitlements.active[PRO_ENTITLEMENT];
 }

@@ -6,6 +6,7 @@ import { createTrip } from '@/core/operations';
 import { searchItems } from '@/core/search';
 import { tripStatus } from '@/core/insights';
 import { useDerived, useMemory } from '@/state/memory';
+import { useSession } from '@/state/session';
 import { useTheme } from '@/ui/theme';
 import { radius, space } from '@/ui/tokens';
 import { Button } from '@/ui/components/Button';
@@ -18,6 +19,7 @@ export default function Trips() {
   const { graph } = useMemory();
   const { c } = useTheme();
   const [creating, setCreating] = useState(false);
+  const { requireSignIn } = useSession();
   const [name, setName] = useState('');
   const [days, setDays] = useState(1);
   const [bagId, setBagId] = useState<string | undefined>();
@@ -42,7 +44,7 @@ export default function Trips() {
   return (
     <Screen bottomInset={60}>
       <Header title="Travel mode" subtitle="Know what’s packed — because the camera saw it in the bag, not because you ticked a box." />
-      {!creating ? <Button label="Plan a trip" icon={Plus} variant="ember" onPress={() => setCreating(true)} /> : null}
+      {!creating ? <Button label="Plan a trip" icon={Plus} variant="ember" onPress={() => requireSignIn('save', { pathname: '/trips' }) && setCreating(true)} /> : null}
 
       {creating ? (
         <Card style={{ gap: space.lg }}>
