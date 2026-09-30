@@ -42,8 +42,10 @@ export async function logOutPurchases(): Promise<void> {
   }
 }
 
+/** Pro = the `physical_memory_pro` entitlement, or any active entitlement (this project has a single tier). */
 export function hasPro(info: CustomerInfo | null | undefined): boolean {
-  return !!info?.entitlements.active[PRO_ENTITLEMENT];
+  const active = info?.entitlements.active ?? {};
+  return !!active[PRO_ENTITLEMENT] || Object.keys(active).length > 0;
 }
 
 export async function getCustomerInfo(): Promise<CustomerInfo | null> {

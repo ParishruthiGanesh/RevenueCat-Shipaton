@@ -52,7 +52,7 @@ export default function Profile() {
     boxes: g.entities((e) => !!e.box).length,
     corrections: g.corrections().length,
   }));
-  const expires = customerInfo?.entitlements.active.physical_memory_pro?.expirationDate;
+  const expires = Object.values(customerInfo?.entitlements.active ?? {})[0]?.expirationDate;
 
   return (
     <Screen>

@@ -1,7 +1,11 @@
 import type { ExpoConfig } from 'expo/config';
 
 // Google iOS sign-in needs the reversed iOS client ID registered as a URL scheme.
-const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
+const EAS_PROJECT_ID = '766c6fa4-2141-4a39-9243-a75584b5972a';
+
+// Template placeholders (".env.example" values) count as unset.
+const real = (v?: string) => (v && !v.includes('xxxxxxxx') ? v : '');
+const googleIosClientId = real(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
 const googleIosUrlScheme = googleIosClientId ? `com.googleusercontent.apps.${googleIosClientId.replace('.apps.googleusercontent.com', '')}` : undefined;
 // Sign in with Apple needs a paid Apple Developer account; off until EXPO_PUBLIC_ENABLE_APPLE_SIGN_IN=true.
 const appleSignIn = process.env.EXPO_PUBLIC_ENABLE_APPLE_SIGN_IN === 'true';
@@ -53,12 +57,17 @@ const config: ExpoConfig = {
     ['expo-speech-recognition', { microphonePermission: 'Say what you’re putting away.', speechRecognitionPermission: 'Your words are turned into text to understand what you’re remembering or asking.' }],
     ['expo-notifications', { color: '#D9602F' }],
     ...(appleSignIn ? ['expo-apple-authentication'] : []),
-    googleIosUrlScheme ? ['react-native-nitro-google-signin', { iosUrlScheme: googleIosUrlScheme }] : 'react-native-nitro-google-signin',
+    // Only iOS needs this plugin (URL scheme); Android Credential Manager needs no native config.
+    ...(googleIosUrlScheme ? [['react-native-nitro-google-signin', { iosUrlScheme: googleIosUrlScheme }] as [string, object]] : []),
     ['onesignal-expo-plugin', { mode: process.env.NODE_ENV === 'production' ? 'production' : 'development' }],
     ['expo-build-properties', { ios: { deploymentTarget: '16.4' } }],
   ],
   experiments: { typedRoutes: true },
-  extra: { eas: { projectId: process.env.EAS_PROJECT_ID } },
+  owner: 'parishruthi',
+  extra: { eas: { projectId: EAS_PROJECT_ID } },
+  // Over-the-air JS updates (EAS Update); native changes still need a new build.
+  runtimeVersion: { policy: 'appVersion' },
+  updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
 };
 
 export default config;

@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Platform, View } from 'react-native';
+import { seedDemo } from '@/demo/seed';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -25,15 +26,25 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function Shell() {
   const { c, scheme } = useTheme();
-  const { ready } = useMemory();
-  const { ready: settingsReady } = useSettings();
+  const { ready, graph } = useMemory();
+  const { ready: settingsReady, update } = useSettings();
   const loaded = ready && settingsReady;
+
+  // Dev-only: `?demo=1` in the web preview loads the sample home (used to capture store screenshots).
+  const demo = __DEV__ && Platform.OS === 'web' && typeof window !== 'undefined' && window.location.search.includes('demo=1');
+  const [seeded, setSeeded] = useState(!demo);
+  useEffect(() => {
+    if (!demo || !loaded || seeded) return;
+    if (!graph.items().length) seedDemo(graph);
+    update({ onboarded: true });
+    Promise.resolve().then(() => setSeeded(true));
+  }, [demo, loaded, seeded, graph, update]);
 
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync().catch(() => undefined);
   }, [loaded]);
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
+  if (!loaded || !seeded) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
   return (
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
