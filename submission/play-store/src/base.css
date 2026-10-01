@@ -1,0 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#F6F2EC;font-family:Inter,sans-serif;color:#1D1B18;overflow:hidden}
+h1{font-family:Fraunces,serif;font-weight:600;letter-spacing:-1.5px}
+em{font-style:normal;color:#D9602F}

@@ -16,6 +16,7 @@ react-native, expo, typescript, supabase, postgresql, pgvector, claude, revenuec
 ## Try it out
 - Source code (MIT): https://github.com/ParishruthiGanesh/RevenueCat-Shipaton
 - Demo video: <YOUTUBE LINK>
+- Download for Android (APK): <APK LINK>
 
 ---
 
