@@ -9,6 +9,9 @@ import { markNoLongerThere } from '@/core/operations';
 import { breadcrumb, formatWhen, sourcePhrase, type Answer } from '@/core/phrasing';
 import type { Entity } from '@/core/types';
 import { track } from '@/services/analytics';
+import { recordedBy } from '@/core/family';
+import { useFamily } from '@/state/family';
+import { useSession } from '@/state/session';
 import { useTheme } from '../theme';
 import { radius, space } from '../tokens';
 import { Breadcrumb } from './Breadcrumb';
@@ -24,8 +27,11 @@ import { T } from './Text';
  */
 export function AnswerCard({ graph, entity, belief, answer, note, simple }: { graph: MemoryGraph; entity: Entity; belief: LocationBelief; answer: Answer; note?: string; simple?: boolean }) {
   const { c } = useTheme();
+  const { members } = useFamily();
+  const { userId } = useSession();
   const [revealed, setRevealed] = useState(false);
   const p = belief.primary;
+  const by = recordedBy(p?.observation, members, userId);
   const media = graph.media(p?.observation.mediaId ?? entity.coverMediaId);
   const path = p ? breadcrumb(graph, p.currentChain) : [];
 
@@ -96,6 +102,7 @@ export function AnswerCard({ graph, entity, belief, answer, note, simple }: { gr
                 <ConfidenceBadge level={belief.level} />
                 <T variant="caption" color="muted">
                   {sourcePhrase(p)}
+                  {by ? ` · added by ${by}` : ''}
                 </T>
               </View>
               <ConfidenceMeter level={belief.level} score={belief.score} />

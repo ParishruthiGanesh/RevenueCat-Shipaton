@@ -11,6 +11,7 @@ import { useMemory } from '@/state/memory';
 import { usePro } from '@/state/pro';
 import { useSession } from '@/state/session';
 import { useSettings } from '@/state/settings';
+import { useFamily } from '@/state/family';
 import { useTheme } from '@/ui/theme';
 import { radius, space } from '@/ui/tokens';
 import { AskBar } from '@/ui/components/AskBar';
@@ -27,12 +28,13 @@ const EXAMPLES: { title: string; items: string[] }[] = [
 ];
 
 export default function Search() {
-  const params = useLocalSearchParams<{ q?: string }>();
+  const params = useLocalSearchParams<{ q?: string; reset?: string }>();
   const { graph } = useMemory();
   const { c, simple } = useTheme();
   const { online, backend } = useSession();
   const { settings } = useSettings();
   const { require } = usePro();
+  const { family } = useFamily();
   const [q, setQ] = useState('');
   const [result, setResult] = useState<AskResult | null>(null);
   const [thinking, setThinking] = useState(false);
@@ -57,13 +59,34 @@ export default function Search() {
         }
       }
       if (SMART.includes(parsed.intent) && !require('smart_questions')) return;
-      const r = ask(graph, parsed, { includeSensitive: true });
+      const r = ask(graph, parsed, {
+        includeSensitive: true,
+        resolveMember: (name) => {
+          const n = name.trim().toLowerCase();
+          if (['me', 'i', 'myself'].includes(n)) return 'self';
+          const match = (family?.members ?? []).filter((m) => m.name.toLowerCase() === n || m.name.toLowerCase().startsWith(n));
+          if (!match.length) return null;
+          return match.some((m) => m.isMe) ? 'self' : match.map((m) => m.userId);
+        },
+      });
       setResult(r);
       track(r.type === 'none' ? 'query_failed' : 'query_success', { intent: parsed.intent, kind: r.type });
       if (r.type === 'item') track('object_found', { level: r.belief.level });
     },
-    [graph, backend, online, settings.cloudAI, require],
+    [graph, backend, online, settings.cloudAI, require, family],
   );
+
+  // Tapping the Ask tab again (or ✕) returns to the starting page.
+  const reset = () => {
+    setResult(null);
+    setQ('');
+    setThinking(false);
+  };
+  useEffect(() => {
+    if (!params.reset) return;
+    const t = setTimeout(reset, 0);
+    return () => clearTimeout(t);
+  }, [params.reset]);
 
   useEffect(() => {
     if (!params.q) return;
@@ -78,7 +101,7 @@ export default function Search() {
       <T variant="title" style={{ marginBottom: space.lg }}>
         Ask Physical Memory
       </T>
-      <AskBar value={q} onChangeText={setQ} onSubmit={run} autoFocus={!params.q && !result} placeholder="Ask about anything you own…" />
+      <AskBar value={q} onChangeText={setQ} onSubmit={run} onClear={reset} autoFocus={!params.q && !result} placeholder="Ask about anything you own…" />
       <View style={{ marginTop: space.xl }}>
         {thinking ? (
           <View style={styles.thinking}>

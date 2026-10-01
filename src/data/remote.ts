@@ -23,7 +23,10 @@ export const PUSH_ORDER: TableName[] = ['people', 'media', 'entities', 'observat
 
 type Row = Record<string, unknown>;
 
-export function toRemote(table: TableName, r: unknown, userId: string): Row | null {
+/** Resolves which household (if any) a row belongs to, for family sharing. */
+export type HouseholdResolver = (table: TableName, row: unknown) => string | null;
+
+export function toRemote(table: TableName, r: unknown, userId: string, household: HouseholdResolver = () => null): Row | null {
   switch (table) {
     case 'entities': {
       const e = r as Entity;
@@ -47,6 +50,7 @@ export function toRemote(table: TableName, r: unknown, userId: string): Row | nu
         box_category: e.box?.category ?? null,
         box_sealed_at: e.box?.sealedAt ?? null,
         cover_media_id: e.coverMediaId ?? null,
+        household_id: household(table, e),
         created_at: e.createdAt,
         updated_at: e.updatedAt,
         archived_at: e.archivedAt ?? null,
@@ -77,6 +81,7 @@ export function toRemote(table: TableName, r: unknown, userId: string): Row | nu
         retracted: o.retracted,
         device_id: o.deviceId ?? null,
         note: o.note ?? null,
+        household_id: household(table, o),
       };
     }
     case 'relations': {
@@ -124,7 +129,9 @@ export function toRemote(table: TableName, r: unknown, userId: string): Row | nu
 
 const u = <T>(v: unknown): T | undefined => (v === null || v === undefined ? undefined : (v as T));
 
-export function fromRemote(table: TableName, r: Row): unknown {
+/** `myUserId` marks rows created by someone else (family members) with `createdBy`. */
+export function fromRemote(table: TableName, r: Row, myUserId?: string): unknown {
+  const by = myUserId && r.user_id && r.user_id !== myUserId ? (r.user_id as string) : undefined;
   switch (table) {
     case 'entities':
       return {
@@ -143,6 +150,8 @@ export function fromRemote(table: TableName, r: Row): unknown {
         mobility: u(r.mobility),
         box: r.box_code ? { number: r.box_number, code: r.box_code, category: u(r.box_category), sealedAt: u(r.box_sealed_at) } : undefined,
         coverMediaId: u(r.cover_media_id),
+        householdId: r.kind === 'space' ? u(r.household_id) : undefined,
+        createdBy: by,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
         archivedAt: u(r.archived_at),
@@ -169,6 +178,7 @@ export function fromRemote(table: TableName, r: Row): unknown {
         retracted: r.retracted,
         deviceId: u(r.device_id),
         note: u(r.note),
+        createdBy: by,
       } satisfies Record<keyof Observation, unknown>;
     case 'relations':
       return { id: r.id, fromId: r.from_id, type: r.type, toId: r.to_id, validFrom: r.valid_from, validTo: u(r.valid_to), source: r.source, confidence: r.confidence };

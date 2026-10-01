@@ -222,3 +222,21 @@ describe('travel mode & insights', () => {
     expect(computeInsights(h.graph, hoursAfter(clock.now, 24 * 22)).filter((i) => i.kind === 'loan_overdue')).toHaveLength(1);
   });
 });
+
+describe('family questions', () => {
+  afterEach(resetDeterminism);
+  it('"Where did Dad put the drill?" finds the drill Dad recorded, not mine', () => {
+    deterministic();
+    const h = buildHome();
+    const mine = item(h.graph, 'Drill', { colors: ['yellow'] });
+    const dads = item(h.graph, 'Drill', { colors: ['black'] });
+    see(h.graph, mine.id, h.deskDrawer.id, T0);
+    const o = see(h.graph, dads.id, h.shelf.id, T0);
+    h.graph.commit([{ op: 'upsert', table: 'observations', row: { ...o, createdBy: 'dad-uid' } }]);
+    expect(parseQuery('Where did Dad put the drill?')).toMatchObject({ intent: 'find', subject: 'drill', addedBy: 'Dad' });
+    const r = ask(h.graph, 'Where did Dad put the drill?', { now: hoursAfter(T0, 1), resolveMember: (n) => (n.toLowerCase() === 'dad' ? ['dad-uid'] : null) });
+    expect(r.type === 'item' && r.entity.id).toBe(dads.id);
+    const unknown = ask(h.graph, 'Where did Grandma put the drill?', { now: hoursAfter(T0, 1), resolveMember: () => null });
+    expect(unknown.type).toBe('none');
+  });
+});

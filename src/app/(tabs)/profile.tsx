@@ -113,6 +113,7 @@ export default function Profile() {
         <Card style={{ paddingVertical: space.xs }}>
           <Row icon={Box} title="Storage boxes" onPress={() => router.push('/boxes')} />
           <Row icon={HandHelping} title="Lent to others" onPress={() => router.push('/loans')} />
+          <Row icon={Users} title="Family" subtitle="Share a home with family — private items stay private" onPress={() => router.push('/family')} />
           <Row icon={Luggage} title="Travel mode" subtitle="Pack, confirm, leave nothing behind" onPress={() => requireFeature('travel_mode') && router.push('/trips')} />
         </Card>
       </Section>
@@ -164,12 +165,6 @@ export default function Profile() {
 
       <Section title="Coming next">
         <Card tone="muted" style={{ gap: space.sm }}>
-          <View style={styles.soon}>
-            <Users size={16} color={c.inkSoft} />
-            <T variant="callout" color="inkSoft" style={{ flex: 1 }}>
-              Family spaces — shared homes with per-person privacy. The backend permissions are in place; invites ship next.
-            </T>
-          </View>
           <T variant="caption" color="muted">
             Also on the way: room recognition, smart-glasses and tracker integrations, and opt-in passive memory. See the Privacy center for how passive capture will work.
           </T>

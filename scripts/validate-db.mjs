@@ -33,6 +33,7 @@ await db.exec(`
   create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text);
   alter table storage.objects enable row level security;
   create function storage.foldername(name text) returns text[] language sql immutable as $$ select string_to_array(name, '/') $$;
+  create function storage.filename(name text) returns text language sql immutable as $$ select (string_to_array(name, '/'))[array_length(string_to_array(name, '/'), 1)] $$;
   create role authenticated nologin;
   create role anon nologin;
 `);
@@ -51,6 +52,7 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith('.sql')).sort()) {
 await db.exec(`
   grant usage on schema public, extensions, auth, storage to authenticated;
   grant all on all tables in schema public to authenticated;
+  grant select on storage.objects to authenticated;
   grant all on all sequences in schema public to authenticated;
   grant execute on all functions in schema public, auth to authenticated;
 `);
@@ -120,14 +122,57 @@ ok((await as(B, `select id from observations`)).rows.length === 0, 'household me
 await as(A, `update entities set private_zone = true where id = $1`, [drawer]);
 ok(!(await as(B, `select name from entities`)).rows.some((r) => r.name === 'Top drawer'), 'private zones are hidden from household members');
 
+console.log('\nFamily invites & photo visibility');
+const C = '33333333-3333-4333-8333-333333333333';
+await db.exec(`insert into auth.users values ('${C}');`);
+const created = (await as(A, `select * from create_household('Ganesh Family', 'Pari')`)).rows[0];
+ok(/^[A-Z2-9]{6}$/.test(created.invite_code), 'create_household returns a 6-char invite code');
+let badCode = false;
+try {
+  await as(C, `select * from join_household('ZZZZZZ')`);
+} catch {
+  badCode = true;
+}
+ok(badCode, 'a wrong invite code is rejected');
+const joined = (await as(C, `select * from join_household($1, 'Revanth')`, [created.invite_code.toLowerCase()])).rows[0];
+ok(joined?.household_name === 'Ganesh Family' && joined.role === 'member', 'join_household with the code makes you a member (case-insensitive)');
+const media1 = uuid(), media2 = uuid();
+await as(A, `insert into media_assets (id, storage_path, width, height, kind) values ($1, $2, 10, 10, 'crop'), ($3, $4, 10, 10, 'crop')`, [media1, `${A}/${media1}.jpg`, media2, `${A}/${media2}.jpg`]);
+const sharedItem = uuid();
+await as(A, `insert into entities (id, kind, name, household_id) values ($1, 'item', 'Drill', $2)`, [sharedItem, created.household_id]);
+await as(
+  A,
+  `insert into observations (id, subject_id, type, observed_at, source, evidence, parent_id, relation, detection_confidence, match_confidence, media_id, household_id)
+   values ($1, $2, 'sighting', now(), 'camera_capture', 'observed', $3, 'INSIDE', 0.9, 1, $4, $5)`,
+  [uuid(), sharedItem, home, media1, created.household_id],
+);
+// The sensitive passport's sighting points at media2 (shared household, but sensitive → hidden).
+await as(A, `update entities set household_id = $1 where id = $2`, [created.household_id, passport]);
+await as(
+  A,
+  `insert into observations (id, subject_id, type, observed_at, source, evidence, parent_id, relation, detection_confidence, match_confidence, media_id, household_id)
+   values ($1, $2, 'sighting', now(), 'camera_capture', 'observed', $3, 'INSIDE', 0.9, 1, $4, $5)`,
+  [uuid(), passport, drawer, media2, created.household_id],
+);
+const seenMedia = (await as(C, `select id from media_assets`)).rows.map((r) => r.id);
+ok(seenMedia.includes(media1), 'family member can see the photo of a shared item');
+ok(!seenMedia.includes(media2), 'family member cannot see the photo of a sensitive item');
+await db.exec(`insert into storage.objects (bucket_id, name) values ('media', '${A}/${media1}.jpg'), ('media', '${A}/${media2}.jpg')`);
+const files = (await as(C, `select name from storage.objects`)).rows.map((r) => r.name);
+ok(files.length === 1 && files[0].includes(media1), 'storage: only the shared item’s photo file is readable');
+await as(C, `update household_members set role = 'owner' where user_id = $1`, [C]);
+ok((await as(C, `select role from household_members where user_id = $1`, [C])).rows[0]?.role === 'member', 'a member cannot promote themselves');
+await as(C, `select leave_household($1)`, [created.household_id]);
+ok((await as(C, `select id from entities where id = $1`, [sharedItem])).rows.length === 0, 'after leaving, shared items are no longer visible');
+
 console.log('\nSearch & views');
 const vec = `[${Array.from({ length: 1024 }, (_, i) => (i === 0 ? 1 : 0)).join(',')}]`;
 await as(A, `insert into entity_embeddings (entity_id, model, modality, embedding) values ($1, 'voyage-multimodal-3', 'image', $2)`, [charger, vec]);
 const hits = (await as(A, `select name, score from search_entities('charger', $1::extensions.vector, 5)`, [vec])).rows;
 ok(hits[0]?.name === 'Charger', 'hybrid search ranks the right object first');
 ok((await as(B, `select * from search_entities('charger', null, 5)`)).rows.every((r) => r.name !== 'Passport'), 'search respects RLS');
-ok((await as(A, `select count(*)::int as n from objects`)).rows[0].n === 2, 'objects view (security invoker) works');
-ok((await as(A, `select count(*)::int as n from latest_sightings`)).rows[0].n === 1, 'latest_sightings view works');
+ok((await as(A, `select count(*)::int as n from objects`)).rows[0].n === 3, 'objects view (security invoker) works');
+ok((await as(A, `select count(*)::int as n from latest_sightings`)).rows[0].n >= 2, 'latest_sightings view works (one per object)');
 
 console.log('\nConstraints');
 let rejected = false;

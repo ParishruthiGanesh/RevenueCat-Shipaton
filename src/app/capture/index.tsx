@@ -30,6 +30,10 @@ const MODES: { id: CaptureMode; label: string; hint: string; max: number }[] = [
   { id: 'box', label: 'Box', hint: 'Photograph the contents before you close it', max: 8 },
 ];
 const SCAN_TARGETS = ['Drawer', 'Shelf', 'Cabinet', 'Desk', 'Room', 'Box', 'Backpack', 'Suitcase'];
+/** Hold-to-scan: frames captured while the shutter is held (the pipeline then selects ≤6 evenly). */
+const MAX_SWEEP_FRAMES = 16;
+const SWEEP_INTERVAL_MS = 450;
+
 const STAGE_LABEL = { preparing: 'Preparing photos', analyzing: 'Finding objects and where they are', matching: 'Matching with your memory' } as const;
 
 export default function CaptureScreen() {
@@ -55,6 +59,8 @@ export default function CaptureScreen() {
   const [error, setError] = useState<string | null>(null);
   const voice = useVoice((t) => setUtterance(t));
   const flash = useSharedValue(0);
+  const sweeping = useRef(false);
+  const [sweepCount, setSweepCount] = useState<number | null>(null);
 
   // While listening, show the live transcript; the final transcript is committed via onFinal.
   const utterance = voice.state === 'listening' && voice.transcript ? voice.transcript : typedUtterance;
@@ -77,6 +83,39 @@ export default function CaptureScreen() {
       if (photos.length === 0) track('scan_started', { mode });
     } catch {
       setError('Couldn’t take the photo. Try again.');
+    }
+  };
+
+  /** Hold the shutter and sweep the camera: grabs a frame every ~0.7s until release (video-style scan). */
+  const startSweep = async () => {
+    if (!cam.current || sweeping.current) return;
+    sweeping.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+    track('scan_started', { mode, sweep: true });
+    const frames: RawPhoto[] = [];
+    setSweepCount(0);
+    while (sweeping.current && frames.length < MAX_SWEEP_FRAMES && cam.current) {
+      try {
+        const pic = await cam.current.takePictureAsync({ quality: 0.6, skipProcessing: true, shutterSound: false });
+        if (pic) {
+          frames.push({ uri: pic.uri, width: pic.width, height: pic.height });
+          setSweepCount(frames.length);
+          Haptics.selectionAsync().catch(() => undefined);
+        }
+      } catch {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, SWEEP_INTERVAL_MS));
+    }
+    sweeping.current = false;
+    setSweepCount(null);
+    if (frames.length) setPhotos((p) => [...p, ...frames]);
+  };
+
+  const stopSweep = () => {
+    if (sweeping.current) {
+      sweeping.current = false;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
     }
   };
 
@@ -228,6 +267,19 @@ export default function CaptureScreen() {
           </View>
         ) : null}
 
+        {sweepCount !== null ? (
+          <View style={[styles.sweepPill, { backgroundColor: c.ember }]}>
+            <View style={styles.recDot} />
+            <T variant="label" style={{ color: '#fff' }}>
+              {`Scanning · ${sweepCount} ${sweepCount === 1 ? 'frame' : 'frames'} — move slowly, release to finish`}
+            </T>
+          </View>
+        ) : photos.length === 0 ? (
+          <T variant="caption" align="center" style={{ color: 'rgba(255,255,255,0.8)' }}>
+            Tap for a photo · hold to sweep-scan the whole area
+          </T>
+        ) : null}
+
         {mode === 'scan' && !target ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.xs, paddingHorizontal: space.xl }}>
             {SCAN_TARGETS.map((t) => (
@@ -266,8 +318,24 @@ export default function CaptureScreen() {
             </T>
           </View>
 
-          <Pressable accessibilityRole="button" accessibilityLabel="Take photo" onPress={shoot} disabled={busy || photos.length >= modeInfo.max} style={styles.shutterOuter}>
-            <View style={[styles.shutterInner, { backgroundColor: photos.length >= modeInfo.max ? 'rgba(255,255,255,0.4)' : '#fff' }]} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Take photo. Hold to sweep-scan."
+            accessibilityHint="Tap for one photo, or hold and move the camera slowly to scan a whole area"
+            onPress={shoot}
+            onLongPress={startSweep}
+            delayLongPress={300}
+            onPressOut={stopSweep}
+            disabled={busy}
+            style={[styles.shutterOuter, sweepCount !== null && { borderColor: c.ember }]}
+          >
+            <View
+              style={[
+                styles.shutterInner,
+                { backgroundColor: sweepCount !== null ? c.ember : photos.length >= modeInfo.max ? 'rgba(255,255,255,0.4)' : '#fff' },
+                sweepCount !== null && { width: 40, height: 40, borderRadius: 10 },
+              ]}
+            />
             {photos.length ? (
               <View style={[styles.count, { backgroundColor: c.ember }]}>
                 <T variant="caption" style={{ color: '#fff', fontFamily: 'Inter_700Bold' }}>
@@ -358,6 +426,8 @@ const styles = StyleSheet.create({
   side: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
   shutterOuter: { width: 84, height: 84, borderRadius: 42, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   shutterInner: { width: 66, height: 66, borderRadius: 33 },
+  sweepPill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'center', paddingHorizontal: space.lg, paddingVertical: 8, borderRadius: radius.pill },
+  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#fff' },
   count: { position: 'absolute', top: -4, right: -4, minWidth: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   modes: { flexDirection: 'row', alignSelf: 'center', gap: space.xs, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: radius.pill, padding: 4 },
   mode: { paddingHorizontal: space.lg, paddingVertical: 8, borderRadius: radius.pill },

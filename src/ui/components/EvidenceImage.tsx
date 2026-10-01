@@ -21,6 +21,21 @@ async function signedUrl(path: string): Promise<string | null> {
   return data.signedUrl;
 }
 
+/** Resolves a media asset to a displayable URI (local file, or short-lived signed URL for restored media). */
+export function useMediaUri(media?: MediaAsset): string | null {
+  const [signed, setSigned] = useState<{ path: string; url: string | null } | null>(null);
+  useEffect(() => {
+    if (media?.localUri || !media?.remotePath) return;
+    const path = media.remotePath;
+    let live = true;
+    signedUrl(path).then((url) => live && setSigned({ path, url }));
+    return () => {
+      live = false;
+    };
+  }, [media?.localUri, media?.remotePath]);
+  return media?.localUri || (signed && signed.path === media?.remotePath ? signed.url : null);
+}
+
 /**
  * Visual evidence. Local file first; restored-from-cloud media via short-lived signed URL.
  * Sensitive objects are blurred by default until the user reveals them.
@@ -45,18 +60,7 @@ export function EvidenceImage({
   revealed?: boolean;
 }) {
   const { c } = useTheme();
-  const [signed, setSigned] = useState<{ path: string; url: string | null } | null>(null);
-
-  useEffect(() => {
-    if (media?.localUri || !media?.remotePath) return;
-    const path = media.remotePath;
-    let live = true;
-    signedUrl(path).then((url) => live && setSigned({ path, url }));
-    return () => {
-      live = false;
-    };
-  }, [media?.localUri, media?.remotePath]);
-  const uri = media?.localUri || (signed && signed.path === media?.remotePath ? signed.url : null);
+  const uri = useMediaUri(media);
 
   const dims: ViewStyle = size ? { width: size, height: size } : {};
   const hide = sensitive && !revealed;

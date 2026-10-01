@@ -35,7 +35,10 @@ function TabBar({ state, navigation }: TabBarProps) {
         onPress={() => {
           Haptics.selectionAsync().catch(() => undefined);
           const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
+          if (e.defaultPrevented) return;
+          // Tapping the current tab again returns it to its starting page (clears Ask, scrolls to top).
+          if (focused) navigation.navigate(route.name, { reset: String(Date.now()), q: undefined });
+          else navigation.navigate(route.name);
         }}
         style={styles.tab}
       >

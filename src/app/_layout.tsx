@@ -19,6 +19,7 @@ import { SettingsProvider, useSettings } from '@/state/settings';
 import { MemoryProvider, useMemory } from '@/state/memory';
 import { SessionProvider, useSession } from '@/state/session';
 import { ProProvider } from '@/state/pro';
+import { FamilyProvider } from '@/state/family';
 import { ThemeProvider, useTheme } from '@/ui/theme';
 import { BackgroundTasks } from '@/state/background';
 
@@ -57,6 +58,7 @@ function Shell() {
         <Stack.Screen name="capture/result" options={{ gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
         <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="family" />
         <Stack.Screen name="scan-qr" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen name="evidence/[id]" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
       </Stack>
@@ -66,7 +68,11 @@ function Shell() {
 
 function WithPro({ children }: { children: React.ReactNode }) {
   const { userId } = useSession();
-  return <ProProvider userId={userId}>{children}</ProProvider>;
+  return (
+    <ProProvider userId={userId}>
+      <FamilyProvider>{children}</FamilyProvider>
+    </ProProvider>
+  );
 }
 
 export default function RootLayout() {

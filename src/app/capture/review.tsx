@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { ArrowRight, Check, ChevronDown, CornerDownRight, EyeOff, Lock, MapPin, Plus, Trash2, UserRoundX, X } from 'lucide-react-native';
@@ -39,10 +39,8 @@ export default function Review() {
 
   const mediaById = useMemo(() => new Map(media.map((m) => [m.id, m])), [media]);
 
-  if (!draft) {
-    router.replace('/');
-    return null;
-  }
+  // Navigating during render isn't allowed; redirect declaratively (e.g. after a reload).
+  if (!draft) return <Redirect href="/" />;
 
   const included = draft.items.filter((i) => i.include);
   const primary = draft.items.find((i) => i.primary && i.include) ?? included[0];

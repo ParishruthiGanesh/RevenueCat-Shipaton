@@ -48,6 +48,15 @@ export type AskResult =
 
 export interface AskOptions extends SearchOptions {
   now?: Date;
+  /** Family: resolves a spoken name ("Dad") to the cloud user ids it may refer to; 'self' = this user. */
+  resolveMember?: (name: string) => string[] | 'self' | null;
+}
+
+/** Keep only objects whose latest sighting was recorded by the named family member. */
+function byRecorder(graph: MemoryGraph, ids: string[] | 'self', entityId: string): boolean {
+  const last = graph.observationsOf(entityId).filter((o) => o.type === 'sighting').pop();
+  if (!last) return false;
+  return ids === 'self' ? !last.createdBy : !!last.createdBy && ids.includes(last.createdBy);
 }
 
 function personId(graph: MemoryGraph, name?: string) {
@@ -82,7 +91,13 @@ export function ask(graph: MemoryGraph, input: string | ParsedQuery, opts: AskOp
 
   switch (parsed.intent) {
     case 'find': {
-      const { hits, confident } = findSubject(graph, parsed, o);
+      let { hits, confident } = findSubject(graph, parsed, o);
+      if (parsed.addedBy && opts.resolveMember) {
+        const who = opts.resolveMember(parsed.addedBy);
+        if (!who) return { type: 'none', parsed, message: `I don’t know anyone called ${parsed.addedBy} in your family yet.` };
+        hits = hits.filter((h) => byRecorder(graph, who, h.entity.id));
+        confident = isConfidentHit(hits) || (hits.length === 1 && hits[0].score >= 0.4);
+      }
       if (!confident) return candidatesResult(parsed, hits);
       const top = hits[0];
       let note: string | undefined;
@@ -99,6 +114,10 @@ export function ask(graph: MemoryGraph, input: string | ParsedQuery, opts: AskOp
       const place = resolvePlace(graph, parsed.place ?? '');
       if (!place) return { type: 'none', parsed, message: `I don't know a place called "${parsed.place}" yet.` };
       let entries = contentsOf(graph, place.id, { recursive: true, at });
+      if (parsed.addedBy && opts.resolveMember) {
+        const who = opts.resolveMember(parsed.addedBy);
+        if (who) entries = entries.filter((e) => byRecorder(graph, who, e.entity.id));
+      }
       const pid = personId(graph, parsed.person);
       if (pid) entries = entries.filter((e) => e.entity.ownerId === pid);
       return {

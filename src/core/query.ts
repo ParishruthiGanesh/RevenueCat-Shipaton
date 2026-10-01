@@ -32,6 +32,8 @@ export interface ParsedQuery {
   person?: string;
   /** "which box", "which drawer" — the user wants the container. */
   containerType?: string;
+  /** "Where did Dad put the drill?" — a family member who recorded it. */
+  addedBy?: string;
   sinceDays?: number;
   raw: string;
   /** Parser confidence that it understood the question. */
@@ -110,6 +112,12 @@ export function parseQuery(input: string): ParsedQuery {
   if ((m = r.match(/^(?:what(?:'s| is| are)?|which (?:things|items|objects)(?: are)?|show(?: me)?|list)(?: all)?(?: (?:the )?(?:things|items|stuff|objects))?(?: belonging to (\w+))? (?:currently )?(?:is |are )?(?:in|inside|on|at) (?:my |the |our )?(.+)$/i)))
     return out({ intent: 'contents', place: strip(m[2]), person: m[1], confidence: 0.9 });
   if ((m = r.match(/^(?:what'?s|what is) (?:in|inside) (.+)$/i))) return out({ intent: 'contents', place: strip(m[1]), confidence: 0.9 });
+
+  // "Where did Dad put the drill?" / "What did Mom put in Box 8?" — family member who recorded it.
+  if ((m = r.match(/^where did (?!i|we|you)([A-Za-z]+) (?:put|leave|keep|store|hide) (?:the |my |our |his |her |their )?(.+)$/i)))
+    return out({ intent: 'find', subject: strip(m[2]), addedBy: m[1], confidence: 0.95 });
+  if ((m = r.match(/^what did (?!i|we|you)([A-Za-z]+) put (?:in|into|on) (?:the |my |our )?(.+)$/i)))
+    return out({ intent: 'contents', place: strip(m[2]), addedBy: m[1], confidence: 0.9 });
 
   // "where is my passport", "where did I put my AirPods", "find my travel charger", "who has my camera"
   if (

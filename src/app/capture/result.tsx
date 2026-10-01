@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { ArrowRight, Check, CirclePlus, EyeOff, MoveRight, Printer, Search } from 'lucide-react-native';
@@ -24,10 +24,8 @@ export default function Result() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
   }, []);
 
-  if (!result || !draft) {
-    router.replace('/');
-    return null;
-  }
+  // Navigating during render isn't allowed; redirect declaratively (e.g. after a reload).
+  if (!result || !draft) return <Redirect href="/" />;
 
   const done = () => {
     captureSession.clear();

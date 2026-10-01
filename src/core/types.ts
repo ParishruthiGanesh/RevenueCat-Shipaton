@@ -92,6 +92,10 @@ export interface Entity {
   box?: StorageBoxMeta;
   /** Representative evidence thumbnail. */
   coverMediaId?: ID;
+  /** Family sharing: set on a SPACE to share it (and everything in it) with a household. */
+  householdId?: ID;
+  /** Cloud user who created this row when it came from a family member (absent = this user). */
+  createdBy?: string;
   createdAt: ISODate;
   updatedAt: ISODate;
   archivedAt?: ISODate;
@@ -161,6 +165,8 @@ export interface Observation {
   retracted: boolean;
   deviceId?: string;
   note?: string;
+  /** Cloud user who recorded this observation when it came from a family member (absent = this user). */
+  createdBy?: string;
 }
 
 export interface Relation {

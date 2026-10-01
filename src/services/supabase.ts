@@ -1,7 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
-import Storage from 'expo-sqlite/kv-store';
+import { authStorage } from './auth-storage';
 import { env, features } from './env';
 
 /**
@@ -16,7 +15,7 @@ export function supabase(): SupabaseClient | null {
     client = createClient(env.supabaseUrl, env.supabaseAnonKey, {
       // Native: SQLite-backed KV store. Web (preview only): the browser's localStorage, because
       // browsers allow a single open handle per SQLite file and the memory database already holds it.
-      auth: { storage: Platform.OS === 'web' ? undefined : Storage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false, flowType: 'pkce' },
+      auth: { storage: authStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false, flowType: 'pkce' },
     });
   }
   return client;

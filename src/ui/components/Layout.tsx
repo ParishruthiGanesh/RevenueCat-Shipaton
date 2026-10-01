@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, View, type ScrollViewProps, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useScrollToTop } from 'expo-router';
 import { ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../theme';
 import { radius, shadow, space } from '../tokens';
@@ -10,10 +10,12 @@ import { T } from './Text';
 export function Screen({ children, scroll = true, padded = true, style, contentStyle, bottomInset = 120, ...rest }: { children: React.ReactNode; scroll?: boolean; padded?: boolean; style?: ViewStyle; contentStyle?: ViewStyle; bottomInset?: number } & ScrollViewProps) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
   const pad: ViewStyle = { paddingTop: insets.top + space.sm, paddingHorizontal: padded ? space.xl : 0, paddingBottom: insets.bottom + bottomInset };
   if (!scroll) return <View style={[{ flex: 1, backgroundColor: c.bg }, pad, style]}>{children}</View>;
   return (
-    <ScrollView style={[{ flex: 1, backgroundColor: c.bg }, style]} contentContainerStyle={[pad, contentStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} {...rest}>
+    <ScrollView ref={scrollRef} style={[{ flex: 1, backgroundColor: c.bg }, style]} contentContainerStyle={[pad, contentStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} {...rest}>
       {children}
     </ScrollView>
   );
